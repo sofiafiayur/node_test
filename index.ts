@@ -27,6 +27,12 @@ export interface ReqParams {
     search?: string,
 }
 
+export interface NodeInfo {
+    node_id: number;
+    name: string;
+    children_count: number;
+}
+
 const connection = mysql.createConnection({
     host: env.host,
     port: env.port,
@@ -99,7 +105,7 @@ export const ParamsAppGet = app.get('/:node_id/:language', (req: Request, res: R
                                             node_tree_nameQuery(reqParams)
                                                 .then((nameRows: any) => {
                                                     if (nameRows && nameRows.length > 0) {
-                                                        let resRow = {
+                                                        let resRow: NodeInfo = {
                                                             node_id: nameRows[0].idNode,
                                                             name: nameRows[0].nodeName,
                                                             children_count: child_num,
