@@ -5,14 +5,14 @@ import {Response, Request } from 'express';
 
 export type Languages = 'english' | 'italian';
 
-export interface Node_tree_namesModel {
+export interface NodeTreenamesModel {
     idName: number,
     idNode: number,
     nodeName: string,
     language: Languages,
 }
 
-export interface Node_treeModel {
+export interface NodeTreeModel {
     idNode: number,
     level: number,
     iLeft: number,
@@ -67,6 +67,8 @@ export const noParamsAppGet = app.get('/:node_id?', (req: Request, res: Response
     next();
 });
 
+
+
 /**
  * define the url with both of node_id and language as params inputs
  * return resRow {
@@ -75,21 +77,24 @@ export const noParamsAppGet = app.get('/:node_id?', (req: Request, res: Response
  *          child_num: number,
  *        }
  */
-export const ParamsAppGet = app.get('/:node_id/:language', asyncMiddleware((req, res, next) => {
-    let reqParams : ReqParams = {
+export const ParamsAppGet = app.get('/:node_id/:language', (req, res, next) => {
+    let reqParams: ReqParams = {
         node_id: req.params.node_id,
         language: req.params.language,
         page_num: req.query.page_num || 0,
         page_size: req.query.page_size || 100,
         search: req.query.search,
     }
-    
-    // try {
+
+    try {
         if (reqParams.page_num > 0) {
             res.send('Invalid page number requested');
             next();
         } else if (reqParams.page_size < 0 || reqParams.page_size > 1000) {
             res.send('Invalid page size requested');
+            next();
+        } else if (!reqParams.language || (reqParams.language !== 'italian' && reqParams.language !== 'english')) {
+            res.send(missingMandtory);
             next();
         } else {
             if (reqParams.language && reqParams.node_id) {
@@ -97,7 +102,7 @@ export const ParamsAppGet = app.get('/:node_id/:language', asyncMiddleware((req,
                     .then((treeRows: any) => {
                         if (treeRows && treeRows.length > 0) {
                             const node_treeRow = treeRows;
-                            node_treeRow.forEach((row: Node_treeModel) => {
+                            node_treeRow.forEach((row: NodeTreeModel) => {
                                 // count the children number of the node.
                                 nodeChildrenNum(row)
                                     .then((child_num: any) => {
@@ -123,15 +128,12 @@ export const ParamsAppGet = app.get('/:node_id/:language', asyncMiddleware((req,
                         }
                     })
                     .catch((errs: any) => { throw new Error(errMessage); });
-            } else {
-                res.send(missingMandtory);
             }
         }
-    // }
-    // catch {
-    //     res.status(500).send(errMessage);
-    // }
-}));
+    } catch {
+        res.status(500).send(errMessage);
+    }
+});
 
 /**
  * Get rows from table 'node_tree_names'
@@ -143,11 +145,11 @@ export function node_tree_nameQuery (reqParams: ReqParams)  {
     let page_start = reqParams.page_num * reqParams.page_size;
     let limit = page_start + ', ' + reqParams.page_size;
 
-    if (reqParams && reqParams.search && reqParams.search.length > 0) {            
+    if (reqParams && reqParams.search && reqParams.search.length > 0) {
         return new Promise ((resolve, rejects) => {
             connection.query('SELECT * FROM node_tree_names WHERE idNode = ? AND language = ? AND nodeName LIKE ? LIMIT ' + limit,
                              [reqParams.node_id, reqParams.language, reqParams.search],
-                             async (err: any, rows: Node_tree_namesModel[]) => {
+                             async (err: any, rows: NodeTreenamesModel[]) => {
                                 if (err) {
                                     rejects(errMessage);
                                 } else {
@@ -163,7 +165,7 @@ export function node_tree_nameQuery (reqParams: ReqParams)  {
         return new Promise ((resolve, rejects) => {
             connection.query('SELECT * FROM node_tree_names WHERE idNode = ? AND language = ? LIMIT ' + limit,
                              [reqParams.node_id, reqParams.language, reqParams.search],
-                             async (err: any, rows: Node_tree_namesModel[]) => {
+                             async (err: any, rows: NodeTreenamesModel[]) => {
                                 if (err) {
                                     rejects(errMessage);
                                 } else {
@@ -187,7 +189,7 @@ export function node_tree_nameQuery (reqParams: ReqParams)  {
 export function node_treeQuery (reqParams: ReqParams) {
     return new Promise ((resolve, rejects) => {
         connection.query('SELECT * FROM node_tree WHERE idNode = ? ', reqParams.node_id,
-            async (err: any, rows: Node_treeModel[]) => {
+            async (err: any, rows: NodeTreeModel[]) => {
                 if (err) {
                     rejects(errMessage);
                 } else {
@@ -207,10 +209,10 @@ export function node_treeQuery (reqParams: ReqParams) {
  * @param treeRows 
  * @returns Promise<number>
  */
-export function nodeChildrenNum (treeRows: Node_treeModel) {
+export function nodeChildrenNum (treeRows: NodeTreeModel) {
     return new Promise ((resolve, rejects) => {
         connection.query('SELECT * FROM node_tree WHERE iLeft > ? AND iRight < ?', [treeRows.iLeft, treeRows.iRight],
-            async (err: any, rows: Node_treeModel[]) => {
+            async (err: any, rows: NodeTreeModel[]) => {
                 if (err) {
                     rejects(errMessage);
                 } else {
@@ -222,18 +224,6 @@ export function nodeChildrenNum (treeRows: Node_treeModel) {
                 }
             });
     });
-}
-
-export async function asyncMiddleware(handler: any) {
-    return async (req, res, next) => {
-        try {
-            await handler(req, res, next);
-        }
-        catch(ex) {
-            res.status(500).send(errMessage);
-        }
-
-    }
 }
 
 /**

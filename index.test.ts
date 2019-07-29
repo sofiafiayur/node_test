@@ -1,6 +1,7 @@
 
-import { noParamsAppGet, ParamsAppGet, ReqParams, node_tree_nameQuery, node_treeQuery, Node_treeModel, nodeChildrenNum, asyncMiddleware } from './index';
+import { noParamsAppGet, ParamsAppGet, ReqParams, node_tree_nameQuery, node_treeQuery, NodeTreeModel, nodeChildrenNum } from './index';
 import {Response} from 'express';
+import { request } from 'http';
 
 const reqParams: ReqParams = {
     node_id: 5,
@@ -10,7 +11,7 @@ const reqParams: ReqParams = {
     page_size: 1,
 }
 
-const treeRow: Node_treeModel = {
+const treeRow: NodeTreeModel = {
     idNode: 5,
     level: 1,
     iLeft: 1,
@@ -49,16 +50,10 @@ describe('mysqlQuery', () => {
 
 });
 
-describe('test get /:node_id/:language', () => {
-    it ('should return NodeInfo', () => {
-        const res = new Response();
-        const next = jest.fn();
-        ParamsAppGet(reqParams, res, next)
-        expect(() => {res.send({
-            node_id: 5,
-            nodeName: 'Docebo',
-            children_count: 11
-        });
-    });
-    });
-})
+// describe('test get /:node_id/:language', () => {
+//     it ('should return NodeInfo', async () => {
+//         const res = await request(ParamsAppGet).get('/' + reqParams.node_id + reqParams.language);
+//         expect
+//     });
+//     });
+// })
