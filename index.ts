@@ -75,7 +75,7 @@ export const noParamsAppGet = app.get('/:node_id?', (req: Request, res: Response
  *          child_num: number,
  *        }
  */
-export const ParamsAppGet = app.get('/:node_id/:language', (req: Request, res: Response, next: any) => {
+export const ParamsAppGet = app.get('/:node_id/:language', asyncMiddleware((req, res, next) => {
     let reqParams : ReqParams = {
         node_id: req.params.node_id,
         language: req.params.language,
@@ -84,7 +84,7 @@ export const ParamsAppGet = app.get('/:node_id/:language', (req: Request, res: R
         search: req.query.search,
     }
     
-    try {
+    // try {
         if (reqParams.page_num > 0) {
             res.send('Invalid page number requested');
             next();
@@ -127,10 +127,11 @@ export const ParamsAppGet = app.get('/:node_id/:language', (req: Request, res: R
                 res.send(missingMandtory);
             }
         }
-    } catch {
-        res.status(500).send(errMessage);
-    }
-});
+    // }
+    // catch {
+    //     res.status(500).send(errMessage);
+    // }
+}));
 
 /**
  * Get rows from table 'node_tree_names'
@@ -221,6 +222,18 @@ export function nodeChildrenNum (treeRows: Node_treeModel) {
                 }
             });
     });
+}
+
+export async function asyncMiddleware(handler: any) {
+    return async (req, res, next) => {
+        try {
+            await handler(req, res, next);
+        }
+        catch(ex) {
+            res.status(500).send(errMessage);
+        }
+
+    }
 }
 
 /**
