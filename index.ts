@@ -77,61 +77,52 @@ export const noParamsAppGet = app.get('/:node_id?', (req: Request, res: Response
  *          child_num: number,
  *        }
  */
-export const ParamsAppGet = app.get('/:node_id/:language', (req, res, next) => {
+export const ParamsAppGet = app.get('/:node_id/:language', async (req, res) => {
     let reqParams: ReqParams = {
-        node_id: req.params.node_id,
+        node_id: Number(req.params.node_id),
         language: req.params.language,
-        page_num: req.query.page_num || 0,
-        page_size: req.query.page_size || 100,
-        search: req.query.search,
+        page_num: Number(req.query.page_num || 0),
+        page_size: Number(req.query.page_size || 100),
+        search: typeof req.query.search === 'string' ? req.query.search : undefined,
+    }
+
+    if (reqParams.page_num > 0) {
+        res.send('Invalid page number requested');
+        return;
+    }
+    if (reqParams.page_size < 0 || reqParams.page_size > 1000) {
+        res.send('Invalid page size requested');
+        return;
+    }
+    if (reqParams.language !== 'italian' && reqParams.language !== 'english') {
+        res.send(missingMandtory);
+        return;
+    }
+    if (!reqParams.node_id) {
+        res.send(invalMessage);
+        return;
     }
 
     try {
-        if (reqParams.page_num > 0) {
-            res.send('Invalid page number requested');
-            next();
-        } else if (reqParams.page_size < 0 || reqParams.page_size > 1000) {
-            res.send('Invalid page size requested');
-            next();
-        } else if (!reqParams.language || (reqParams.language !== 'italian' && reqParams.language !== 'english')) {
-            res.send(missingMandtory);
-            next();
-        } else {
-            if (reqParams.language && reqParams.node_id) {
-                node_treeQuery(reqParams)
-                    .then((treeRows: any) => {
-                        if (treeRows && treeRows.length > 0) {
-                            const node_treeRow = treeRows;
-                            node_treeRow.forEach((row: NodeTreeModel) => {
-                                // count the children number of the node.
-                                nodeChildrenNum(row)
-                                    .then((child_num: any) => {
-                                        if (child_num && child_num > 0) {
-                                            node_tree_nameQuery(reqParams)
-                                                .then((nameRows: any) => {
-                                                    if (nameRows && nameRows.length > 0) {
-                                                        let resRow: NodeInfo = {
-                                                            node_id: nameRows[0].idNode,
-                                                            name: nameRows[0].nodeName,
-                                                            children_count: child_num,
-                                                        };
-                                                        res.send(resRow);
-                                                    } else {
-                                                        res.send(invalMessage);
-                                                    }
-                                                })
-                                            .catch((errs: any) => { throw new Error(errs); });
-                                        }
-                                    })
-                                    .catch((err: any) => {throw new Error(errMessage)});
-                            });
-                        }
-                    })
-                    .catch((errs: any) => { throw new Error(errMessage); });
-            }
+        const treeRows = await node_treeQuery(reqParams);
+        if (!Array.isArray(treeRows) || treeRows.length === 0) {
+            res.send(invalMessage);
+            return;
         }
+        const childCount = await nodeChildrenNum(treeRows[0]);
+        const nameRows = await node_tree_nameQuery(reqParams);
+        if (!Array.isArray(nameRows) || nameRows.length === 0) {
+            res.send(invalMessage);
+            return;
+        }
+        const resRow: NodeInfo = {
+            node_id: nameRows[0].idNode,
+            name: nameRows[0].nodeName,
+            children_count: typeof childCount === 'number' ? childCount : 0,
+        };
+        res.send(resRow);
     } catch {
-        res.status(500).send(errMessage);
+        res.status(503).send('Database unavailable. Check that MySQL is running and env.json is correct.');
     }
 });
 
